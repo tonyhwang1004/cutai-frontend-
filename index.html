@@ -454,6 +454,9 @@
 </style>
 </head>
 <body>
+  <div id="loginBar" style="position:fixed;top:0;right:0;padding:10px;z-index:999">
+  <button onclick="googleLogin()" style="background:#4285f4;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Google로 로그인</button>
+</div>
 
 <header>
   <div class="logo">컷<span>AI</span></div>
@@ -736,8 +739,20 @@ function hideError() {
   document.getElementById('errorBox').classList.remove('show');
 }
 </script>
+  <script>
+function googleLogin(){
+  window.location.href='https://cutai-backend.onrender.com/auth/login';
+}
+const p = new URLSearchParams(location.search);
+if(p.get('token')){
+  localStorage.setItem('cutai_token', p.get('token'));
+  alert('로그인 완료! 편집한 영상이 Google Drive에 자동 저장돼요 🎉');
+  history.replaceState({},'','/');
+}
+</script>
 </body>
 </html>
+
 
 
 
