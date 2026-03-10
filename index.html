@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>컷AI — AI 영상 편집기</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #00ff88;
+    --accent2: #ff3366;
+    --text: #f0f0f0;
+    --text2: #888888;
+    --api: https://cutai-backend.onrender.com;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -1px;
+  }
+
+  .logo span { color: var(--text2); font-weight: 400; }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* HERO */
+  .hero {
+    padding: 80px 40px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    letter-spacing: -2px;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+    position: relative;
+  }
+
+  .hero p {
+    font-size: 18px;
+    color: var(--text2);
+    max-width: 500px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  /* MAIN EDITOR */
+  .editor {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px 80px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    background: var(--surface);
+    margin-bottom: 24px;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.03);
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .upload-zone h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .upload-zone p {
+    color: var(--text2);
+    font-size: 14px;
+  }
+
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    background: var(--surface2);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+
+  .file-info.show { display: flex; }
+
+  .file-icon { font-size: 28px; }
+
+  .file-details { flex: 1; text-align: left; }
+  .file-details .name { font-weight: 600; font-size: 14px; }
+  .file-details .size { color: var(--text2); font-size: 12px; margin-top: 2px; }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  .remove-btn:hover { color: var(--accent2); }
+
+  /* COMMAND INPUT */
+  .command-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    transition: border-color 0.3s;
+  }
+
+  .command-box:focus-within { border-color: var(--accent); }
+
+  .command-label {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .command-input {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 16px;
+    font-family: 'Noto Sans KR', sans-serif;
+    outline: none;
+    resize: none;
+    min-height: 50px;
+    line-height: 1.6;
+  }
+
+  .command-input::placeholder { color: var(--text2); }
+
+  /* QUICK COMMANDS */
+  .quick-cmds {
+    margin-bottom: 24px;
+  }
+
+  .quick-cmds-label {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 12px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .cmd-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text2);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  /* SUBMIT BTN */
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+  }
+
+  .submit-btn:hover { background: #00e077; transform: translateY(-1px); }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { background: var(--border); color: var(--text2); cursor: not-allowed; transform: none; }
+
+  /* PROGRESS */
+  .progress-box {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .progress-box.show { display: block; }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .progress-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .progress-pct {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .progress-log {
+    margin-top: 12px;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text2);
+  }
+
+  /* RESULT */
+  .result-box {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .result-box.show { display: block; }
+
+  .result-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: rgba(0,255,136,0.1);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+  }
+
+  .download-btn:hover { background: rgba(0,255,136,0.2); }
+
+  /* ERROR */
+  .error-box {
+    display: none;
+    background: rgba(255,51,102,0.08);
+    border: 1px solid var(--accent2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: var(--accent2);
+    margin-bottom: 24px;
+  }
+
+  .error-box.show { display: block; }
+
+  /* FEATURES */
+  .features {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 40px;
+    border-top: 1px solid var(--border);
+  }
+
+  .features-title {
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text2);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .feature-card:hover { border-color: var(--accent); }
+
+  .feature-emoji { font-size: 24px; margin-bottom: 10px; }
+  .feature-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .feature-cmd { font-size: 12px; color: var(--text2); font-family: 'Space Mono', monospace; }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 40px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text2);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    header { padding: 16px 20px; }
+    .hero { padding: 60px 20px 40px; }
+    .editor { padding: 0 20px 60px; }
+    .features { padding: 40px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">컷<span>AI</span></div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    <span id="serverStatus">서버 확인 중...</span>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>자연어로<br><em>영상을 편집</em>하세요</h1>
+  <p>명령어 입력 한 줄로 — 자르고, 합치고, 자막 넣고, 쇼츠로 변환까지</p>
+</section>
+
+<div class="editor">
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="video/*">
+    <div class="upload-icon">🎬</div>
+    <h3>영상 파일을 드래그하거나 클릭하세요</h3>
+    <p>MP4, MOV, AVI, MKV 지원 · 최대 500MB</p>
+  </div>
+
+  <!-- File info -->
+  <div class="file-info" id="fileInfo">
+    <div class="file-icon">🎥</div>
+    <div class="file-details">
+      <div class="name" id="fileName">파일명</div>
+      <div class="size" id="fileSize">크기</div>
+    </div>
+    <button class="remove-btn" onclick="removeFile()">✕</button>
+  </div>
+
+  <!-- Command -->
+  <div class="command-box">
+    <div class="command-label">✦ 편집 명령어</div>
+    <textarea class="command-input" id="commandInput"
+      placeholder="예: 앞에 5초 잘라줘 / 배속 2배로 / 쇼츠로 변환 / 자막 자동 생성"
+      rows="2"></textarea>
+  </div>
+
+  <!-- Quick commands -->
+  <div class="quick-cmds">
+    <div class="quick-cmds-label">// 빠른 명령어</div>
+    <div class="cmd-chips">
+      <div class="chip" onclick="setCmd('인트로 5초 제거')">인트로 5초 제거</div>
+      <div class="chip" onclick="setCmd('아웃트로 5초 제거')">아웃트로 5초 제거</div>
+      <div class="chip" onclick="setCmd('배속 2배로 해줘')">배속 2배</div>
+      <div class="chip" onclick="setCmd('쇼츠로 변환해줘')">쇼츠 변환</div>
+      <div class="chip" onclick="setCmd('볼륨 150%로 높여줘')">볼륨 높이기</div>
+      <div class="chip" onclick="setCmd('음소거 해줘')">음소거</div>
+      <div class="chip" onclick="setCmd('1080p로 내보내기')">1080p 내보내기</div>
+      <div class="chip" onclick="setCmd('자막 자동 생성해줘')">자막 자동 생성</div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submitBtn" onclick="submitEdit()">
+    ✦ 편집 시작
+  </button>
+
+  <!-- Progress -->
+  <div class="progress-box" id="progressBox">
+    <div class="progress-header">
+      <div class="progress-title">편집 중...</div>
+      <div class="progress-pct" id="progressPct">0%</div>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    <div class="progress-log" id="progressLog">업로드 중...</div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Result -->
+  <div class="result-box" id="resultBox">
+    <div class="result-title">✓ 편집 완료!</div>
+    <a class="download-btn" id="downloadBtn">⬇ 영상 다운로드</a>
+  </div>
+
+</div>
+
+<!-- Features -->
+<section class="features">
+  <div class="features-title">// 지원 기능</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-emoji">✂️</div>
+      <div class="feature-name">구간 제거</div>
+      <div class="feature-cmd">N분~M분 잘라줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">⚡</div>
+      <div class="feature-name">배속 조절</div>
+      <div class="feature-cmd">배속 2배로 해줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">📱</div>
+      <div class="feature-name">쇼츠 변환</div>
+      <div class="feature-cmd">쇼츠로 변환해줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">🔊</div>
+      <div class="feature-name">볼륨 조절</div>
+      <div class="feature-cmd">볼륨 150%로 높여줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">🔇</div>
+      <div class="feature-name">음소거</div>
+      <div class="feature-cmd">음소거 해줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">💬</div>
+      <div class="feature-name">자막 생성</div>
+      <div class="feature-cmd">자막 자동 생성해줘</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">🎬</div>
+      <div class="feature-name">화질 내보내기</div>
+      <div class="feature-cmd">1080p로 내보내기</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-emoji">🔕</div>
+      <div class="feature-name">소음 제거</div>
+      <div class="feature-cmd">소음 제거해줘</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  컷AI — 한국어 AI 영상 편집기 · Powered by FFmpeg + Flask
+</footer>
+
+<script>
+const API = 'https://cutai-backend.onrender.com';
+let uploadedFile = null;
+let jobId = null;
+
+// Server status check
+async function checkServer() {
+  try {
+    const res = await fetch(API + '/api/health');
+    const data = await res.json();
+    if (data.status === 'ok') {
+      document.getElementById('serverStatus').textContent = '서버 정상 ✓';
+    }
+  } catch(e) {
+    document.getElementById('serverStatus').textContent = '서버 연결 중...';
+  }
+}
+checkServer();
+
+// File handling
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) showFile(e.target.files[0]);
+});
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) showFile(e.dataTransfer.files[0]);
+});
+
+function showFile(file) {
+  uploadedFile = file;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+  document.getElementById('fileInfo').classList.add('show');
+  uploadZone.style.display = 'none';
+}
+
+function removeFile() {
+  uploadedFile = null;
+  fileInput.value = '';
+  document.getElementById('fileInfo').classList.remove('show');
+  uploadZone.style.display = 'block';
+}
+
+function setCmd(cmd) {
+  document.getElementById('commandInput').value = cmd;
+}
+
+async function submitEdit() {
+  const cmd = document.getElementById('commandInput').value.trim();
+  if (!uploadedFile) { showError('영상 파일을 먼저 업로드해주세요!'); return; }
+  if (!cmd) { showError('편집 명령어를 입력해주세요!'); return; }
+
+  hideError();
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('submitBtn').disabled = true;
+  showProgress('업로드 중...', 10);
+
+  try {
+    // Upload
+    const formData = new FormData();
+    formData.append('file', uploadedFile);
+    const uploadRes = await fetch(API + '/api/upload', { method: 'POST', body: formData });
+    const uploadData = await uploadRes.json();
+
+    if (!uploadData.file_id) throw new Error('업로드 실패');
+    showProgress('편집 처리 중...', 40);
+
+    // Edit
+    const editRes = await fetch(API + '/api/edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: uploadData.file_id, command: cmd })
+    });
+    const editData = await editRes.json();
+    jobId = editData.job_id;
+
+    // Poll status
+    pollStatus(jobId);
+
+  } catch(e) {
+    showError('오류: ' + e.message);
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('progressBox').classList.remove('show');
+  }
+}
+
+async function pollStatus(jobId) {
+  try {
+    const res = await fetch(API + '/api/status/' + jobId);
+    const data = await res.json();
+
+    if (data.status === 'processing') {
+      showProgress('편집 중...', 70);
+      setTimeout(() => pollStatus(jobId), 2000);
+    } else if (data.status === 'done') {
+      showProgress('완료!', 100);
+      setTimeout(() => {
+        document.getElementById('progressBox').classList.remove('show');
+        document.getElementById('downloadBtn').href = API + '/api/download/' + jobId;
+        document.getElementById('downloadBtn').onclick = () => {
+          window.location.href = API + '/api/download/' + jobId;
+        };
+        document.getElementById('resultBox').classList.add('show');
+        document.getElementById('submitBtn').disabled = false;
+      }, 500);
+    } else if (data.status === 'error') {
+      throw new Error(data.error || '편집 실패');
+    } else {
+      setTimeout(() => pollStatus(jobId), 2000);
+    }
+  } catch(e) {
+    showError('오류: ' + e.message);
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('progressBox').classList.remove('show');
+  }
+}
+
+function showProgress(msg, pct) {
+  document.getElementById('progressBox').classList.add('show');
+  document.getElementById('progressLog').textContent = msg;
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '⚠ ' + msg;
+  box.classList.add('show');
+}
+
+function hideError() {
+  document.getElementById('errorBox').classList.remove('show');
+}
+</script>
+</body>
+</html>
